@@ -5,7 +5,7 @@ const CACHE_NAME = 'stratus-shell-v1';
 // Files needed for offline app shell
 const CORE_ASSETS = [
   '/index.html',
-  '/sw.js'
+  '/app-sw.js'
 ];
 
 // ---------- IndexedDB ----------
