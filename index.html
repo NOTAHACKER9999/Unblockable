@@ -1,0 +1,420 @@
+ <html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Stratus Store</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#0d0d12;color:#e2e2ee;min-height:100vh}
+header{position:sticky;top:0;z-index:50;background:rgba(13,13,18,.92);backdrop-filter:blur(16px);border-bottom:1px solid #1e1e2e;padding:12px 22px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6c63ff,#a855f7);display:flex;align-items:center;justify-content:center;font-size:17px}
+.logo h1{font-size:16px;font-weight:700;color:#fff}
+.logo small{font-size:11px;color:#555}
+.tabs{display:flex;background:#161620;border-radius:99px;padding:3px}
+.tab{padding:5px 15px;border-radius:99px;border:none;cursor:pointer;font-size:12px;font-weight:500;background:transparent;color:#666;transition:all .2s}
+.tab.active{background:#222236;color:#e2e2ee}
+.n{display:inline-flex;align-items:center;justify-content:center;background:#6c63ff;color:#fff;border-radius:99px;width:16px;height:16px;font-size:10px;margin-left:4px}
+main{max-width:1080px;margin:0 auto;padding:26px 18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:12px}
+.card{background:#13131c;border:1px solid #1e1e2e;border-radius:15px;overflow:hidden;transition:transform .15s,box-shadow .2s}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(108,99,255,.12)}
+.thumb{background:#1a1a28;padding:20px;display:flex;align-items:center;justify-content:center;min-height:120px;position:relative}
+.thumb img{width:72px;height:72px;border-radius:13px;object-fit:cover;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.ibadge{position:absolute;top:7px;right:7px;background:rgba(16,185,129,.9);color:#fff;font-size:10px;padding:2px 7px;border-radius:99px;font-weight:600}
+.body{padding:11px}
+.body h3{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.body .sz{font-size:11px;color:#555;margin-top:3px}
+.row{display:flex;gap:5px;margin-top:9px}
+.btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:6px 10px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:opacity .15s}
+.btn:hover{opacity:.82}
+.pri{background:linear-gradient(135deg,#6c63ff,#a855f7);color:#fff;flex:1}
+.sec{background:#1e1e2e;border:1px solid #2a2a3e;color:#aaa;flex:1}
+.del{background:#1e1e2e;border:1px solid #2a2a3e;color:#888;width:30px;flex:none;padding:0}
+.del:hover{border-color:#e05454;color:#e05454}
+.pb{background:#1e1e2e;border-radius:99px;height:4px;overflow:hidden;margin-top:9px}
+.pf{height:4px;background:linear-gradient(90deg,#6c63ff,#a855f7);width:0%;transition:width .15s}
+.pp{font-size:11px;color:#555;text-align:center;margin-top:4px}
+#status{text-align:center;padding:60px 20px;color:#444;display:none}
+.spin{display:inline-block;width:26px;height:26px;border:3px solid #1e1e2e;border-top-color:#6c63ff;border-radius:50%;animation:sp .7s linear infinite;margin-bottom:10px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:#444}
+#ov{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:16px}
+#ov.open{display:flex}
+#win{background:#0d0d12;border-radius:15px;overflow:hidden;display:flex;flex-direction:column;width:100%;max-width:950px;height:82vh;box-shadow:0 24px 80px rgba(0,0,0,.8)}
+#win.fs{max-width:100vw;width:100vw;height:100vh;border-radius:0}
+#tbar{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;background:#13131c;border-bottom:1px solid #1e1e2e}
+#tbar .ti{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.tbtn{width:28px;height:28px;border-radius:7px;border:none;background:transparent;color:#777;cursor:pointer;font-size:14px;transition:background .15s,color .15s;display:inline-flex;align-items:center;justify-content:center}
+.tbtn:hover{background:#1e1e2e;color:#e2e2ee}
+.tbtn.cl:hover{background:#2a1212;color:#e05454}
+#frame{flex:1;width:100%;border:none;background:#000;display:block}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2e;border:1px solid #333;color:#e2e2ee;padding:9px 18px;border-radius:11px;font-size:13px;box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:200;animation:fu .3s ease;pointer-events:none}
+.toast.ok{border-color:#10b981;color:#10b981}
+.toast.er{border-color:#e05454;color:#e05454}
+@keyframes fu{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🎮</div>
+    <div><h1>Stratus Store</h1><small id="cc">Loading…</small></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="store" onclick="switchTab('store')">Store</button>
+    <button class="tab" data-tab="installed" onclick="switchTab('installed')">Installed<span class="n" id="nb" style="display:none">0</span></button>
+  </div>
+</header>
+
+<main>
+  <div id="status"><div class="spin"></div><p>Loading…</p></div>
+  <div id="grid" class="grid"></div>
+</main>
+
+<div id="ov">
+  <div id="win">
+    <div id="tbar">
+      <div class="ti">🎮 <span id="rt">App</span></div>
+      <div>
+        <button class="tbtn" onclick="toggleFS()" title="Fullscreen">⛶</button>
+        <button class="tbtn cl" onclick="closeRunner()">✕</button>
+      </div>
+    </div>
+    <iframe id="frame"
+      sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals allow-pointer-lock"
+      allow="autoplay; fullscreen; pointer-lock"
+    ></iframe>
+  </div>
+</div>
+
+<script>
+const CATALOG = 'https://raw.githubusercontent.com/Stratus-Games/Stratus-OS-Apps/refs/heads/main/Games/games.json';
+const DB_NAME = 'StratusAppStore', DB_VER = 2;
+
+let catalog=[], installed={}, installing={}, tab='store', db;
+
+// ── IDB ──
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=()=>{
+      const d=r.result;
+      if(!d.objectStoreNames.contains('files')) d.createObjectStore('files');
+      if(!d.objectStoreNames.contains('meta'))  d.createObjectStore('meta');
+    };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+
+const idbPut=(store,k,v)=>new Promise((res,rej)=>{
+  const t=db.transaction(store,'readwrite').objectStore(store);
+  const r=t.put(v,k);
+  r.onsuccess=res;
+  r.onerror=()=>rej(r.error);
+});
+
+const idbGet=(store,k)=>new Promise((res,rej)=>{
+  const r=db.transaction(store,'readonly').objectStore(store).get(k);
+  r.onsuccess=()=>res(r.result);
+  r.onerror=()=>rej(r.error);
+});
+
+const idbKeys=(store)=>new Promise((res,rej)=>{
+  const r=db.transaction(store,'readonly').objectStore(store).getAllKeys();
+  r.onsuccess=()=>res(r.result);
+  r.onerror=()=>rej(r.error);
+});
+
+const idbDel=(store,k)=>new Promise((res,rej)=>{
+  const t=db.transaction(store,'readwrite').objectStore(store);
+  const r=t.delete(k);
+  r.onsuccess=res;
+  r.onerror=()=>rej(r.error);
+});
+
+// ── SW ──
+async function ensureSW(){
+  if(!('serviceWorker' in navigator)) return alert('Service Workers not supported');
+
+  const reg=await navigator.serviceWorker.register('./app-sw.js',{scope:'/'});
+
+  await new Promise(res=>{
+    if(reg.active) return res();
+    const sw=reg.installing||reg.waiting;
+    if(!sw) return res();
+    sw.addEventListener('statechange',()=>{
+      if(sw.state==='activated') res();
+    });
+  });
+}
+
+// ── Parse DF.json ──
+function parseDFJson(raw){
+  const nameM=raw.match(/"name"\s*:\s*"([^"]+)"/);
+  const startM=raw.match(/"start"\s*:\s*"([^"]+)"/);
+
+  const name=nameM?nameM[1]:'App';
+  const start=startM?startM[1]:'index.html';
+
+  const lines=raw.split('\n').map(l=>l.trim());
+  const assets=[];
+  let curDir='';
+
+  for(const line of lines){
+    const pm=line.match(/"path"\s*:\s*"([^"]*)"/);
+    if(pm){
+      curDir=pm[1].replace(/^\.?\//,'').replace(/\/$/,'');
+      continue;
+    }
+
+    const um=line.match(/"(https?:\/\/[^"]+)"/);
+    if(um){
+      const url=um[1];
+      const fname=decodeURIComponent(new URL(url).pathname.split('/').pop());
+      assets.push({ dir:curDir, fname, url });
+    }
+  }
+
+  return { name, start, assets };
+}
+
+// ── UI ──
+function toast(msg,type=''){
+  const el=document.createElement('div');
+  el.className='toast '+(type==='ok'?'ok':type==='er'?'er':'');
+  el.textContent=msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+function updateBadge(){
+  const c=Object.keys(installed).length;
+  const b=document.getElementById('nb');
+  b.textContent=c;
+  b.style.display=c>0?'inline-flex':'none';
+}
+
+function setProgress(name,pct){
+  const id=name.replace(/[^a-z0-9]/gi,'_');
+  const f=document.getElementById('pf_'+id);
+  const p=document.getElementById('pp_'+id);
+
+  if(f) f.style.width=pct+'%';
+  if(p) p.textContent=Math.round(pct)+'%';
+}
+
+// ── Render ──
+function render(){
+  const grid=document.getElementById('grid');
+
+  const list = tab==='installed'
+    ? catalog.filter(a=>installed[a.name])
+    : catalog;
+
+  if(!list.length && tab==='installed'){
+    grid.innerHTML=`<div class="empty">
+      <div style="font-size:40px;margin-bottom:12px">🎮</div>
+      <p>Nothing installed yet</p>
+      <button class="btn sec" style="margin-top:14px;max-width:140px" onclick="switchTab('store')">← Store</button>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(app=>{
+    const id=app.name.replace(/[^a-z0-9]/gi,'_');
+    const isIn=!!installed[app.name];
+    const isIng=!!installing[app.name];
+    const n=app.name.replace(/'/g,"\\'");
+
+    return `<div class="card">
+      <div class="thumb">
+        <img src="${app.icon}" alt="${app.name}" onerror="this.style.display='none'"/>
+        ${isIn?'<div class="ibadge">✓ Installed</div>':''}
+      </div>
+      <div class="body">
+        <h3 title="${app.name}">${app.name}</h3>
+        <div class="sz">💾 ${app.size}</div>
+
+        ${
+          isIng
+          ? `<div class="pb"><div class="pf" id="pf_${id}"></div></div><div class="pp" id="pp_${id}">0%</div>`
+          : isIn
+            ? `<div class="row">
+                <button class="btn pri" onclick="launch('${n}')">▶ Launch</button>
+                <button class="btn del" onclick="uninstall('${n}')">🗑</button>
+              </div>`
+            : `<div class="row">
+                <button class="btn sec" onclick="install('${n}')">⬇ Install</button>
+              </div>`
+        }
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Install ──
+async function install(name){
+  const app=catalog.find(a=>a.name===name);
+  if(!app) return;
+
+  installing[name]=true;
+  render();
+
+  try{
+    const raw=await fetch(app.install).then(r=>r.text());
+    const {start, assets}=parseDFJson(raw);
+
+    if(!assets.length) throw new Error('No assets');
+
+    for(let i=0;i<assets.length;i++){
+      const {dir,fname,url}=assets[i];
+      const ab=await fetch(url).then(r=>r.arrayBuffer());
+
+      const key = dir
+        ? `apps/${name}/${dir}/${fname}`
+        : `apps/${name}/${fname}`;
+
+      await idbPut('files', key, ab);
+      setProgress(name, ((i+1)/assets.length)*100);
+    }
+
+    // ✅ save icon
+    try{
+      const iconBlob = await fetch(app.icon).then(r=>r.blob());
+      await idbPut('files', `apps/${name}/icon`, iconBlob);
+    }catch(e){}
+
+    await idbPut('meta', name, {
+      start,
+      size:app.size,
+      icon:`apps/${name}/icon`
+    });
+
+    installed[name]={start};
+
+    toast(`${name} installed!`,'ok');
+
+    // notify OS
+    if(window.parent !== window){
+      window.parent.postMessage({
+        type:'app-installed',
+        name,
+        icon:app.icon
+      },'*');
+    }
+
+  }catch(e){
+    toast('Install failed: '+e.message,'er');
+    console.error(e);
+  }
+
+  delete installing[name];
+  updateBadge();
+  render();
+}
+
+// ── Uninstall ──
+async function uninstall(name){
+  if(!confirm(`Uninstall ${name}?`)) return;
+
+  const keys=await idbKeys('files');
+
+  for(const k of keys){
+    if(k.startsWith(`apps/${name}/`)){
+      await idbDel('files',k);
+    }
+  }
+
+  await idbDel('meta',name);
+  delete installed[name];
+
+  toast(`${name} uninstalled`);
+
+  updateBadge();
+  render();
+}
+
+// ── Launch ──
+function launch(name){
+  const m=installed[name];
+  if(!m) return;
+
+  const url=`/apps/${encodeURIComponent(name)}/${m.start}`;
+
+  // try OS
+  if(window.parent !== window){
+    window.parent.postMessage({
+      type:'launch-app',
+      name,
+      url
+    },'*');
+    return;
+  }
+
+  // fallback (original)
+  document.getElementById('rt').textContent=name;
+
+  const frame=document.getElementById('frame');
+  frame.src='';
+
+  frame.onload=()=>{
+    try{
+      const win=frame.contentWindow;
+      Object.defineProperty(win.navigator,'maxTouchPoints',{get:()=>0});
+      Object.defineProperty(win.navigator,'msMaxTouchPoints',{get:()=>0});
+      delete win.ontouchstart;
+      setTimeout(()=>win.dispatchEvent(new win.Event('resize')),200);
+    }catch(e){}
+  };
+
+  frame.src=url;
+  document.getElementById('ov').classList.add('open');
+}
+
+// ── Controls ──
+function closeRunner(){
+  document.getElementById('ov').classList.remove('open');
+  document.getElementById('frame').src='';
+}
+
+function toggleFS(){
+  document.getElementById('win').classList.toggle('fs');
+}
+
+function switchTab(t){
+  tab=t;
+  document.querySelectorAll('.tab').forEach(b=>{
+    b.classList.toggle('active',b.dataset.tab===t);
+  });
+  render();
+}
+
+// ── Boot ──
+(async()=>{
+  document.getElementById('status').style.display='block';
+
+  await ensureSW();
+  db=await openDB();
+
+  const mk=await idbKeys('meta');
+
+  for(const k of mk){
+    const m=await idbGet('meta',k);
+    if(m) installed[k]=m;
+  }
+
+  updateBadge();
+
+  catalog=await fetch(CATALOG).then(r=>r.json());
+
+  document.getElementById('cc').textContent=`${catalog.length} apps`;
+
+  document.getElementById('status').style.display='none';
+
+  render();
+})();
+</script>
+</body>
+</html>
