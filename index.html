@@ -285,7 +285,6 @@ async function install(name){
 
     for(let i=0;i<assets.length;i++){
       const {dir,fname,url}=assets[i];
-
       const ab=await fetch(url).then(r=>r.arrayBuffer());
 
       const key = dir
@@ -352,6 +351,16 @@ function launch(name){
   document.getElementById('ov').classList.add('open');
 }
 
+// ── Runner Controls ──
+function closeRunner(){
+  document.getElementById('ov').classList.remove('open');
+  document.getElementById('frame').src='';
+}
+
+function toggleFS(){
+  document.getElementById('win').classList.toggle('fs');
+}
+
 // ── Controls ──
 function switchTab(t){
   tab=t;
@@ -368,7 +377,6 @@ function switchTab(t){
   await ensureSW();
   db=await openDB();
 
-  // load installed FIRST (works offline)
   const mk=await idbKeys('meta');
   for(const k of mk){
     const m=await idbGet('meta',k);
@@ -377,7 +385,6 @@ function switchTab(t){
 
   updateBadge();
 
-  // try fetch catalog
   const data = await safeFetchJSON(CATALOG);
 
   if(data){
