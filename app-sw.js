@@ -79,10 +79,6 @@ self.addEventListener('fetch', event => {
         const mimeType = mime(key);
         const headers = { 'Content-Type': mimeType };
 
-        if (mimeType.startsWith('text/html')) {
-          headers['Cross-Origin-Opener-Policy'] = 'same-origin';
-          headers['Cross-Origin-Embedder-Policy'] = 'require-corp';
-        }
 
         return new Response(data, { status: 200, headers });
       }
