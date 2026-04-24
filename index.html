@@ -134,53 +134,39 @@ const idbDel=(store,k)=>new Promise((res,rej)=>{
   r.onerror=()=>rej(r.error);
 });
 
+// ── SAFE FETCH (important) ──
+async function safeFetchJSON(url){
+  try{
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('bad response');
+    return await r.json();
+  }catch(e){
+    console.warn('Offline or failed fetch:', url);
+    return null;
+  }
+}
+
 // ── SW ──
 async function ensureSW(){
-  if(!('serviceWorker' in navigator)) return alert('Service Workers not supported');
+  if(!('serviceWorker' in navigator)) return;
 
-  const reg=await navigator.serviceWorker.register('./app-sw.js',{scope:'/'});
+  try{
+    const reg=await navigator.serviceWorker.register('./app-sw.js',{scope:'/'});
 
-  await new Promise(res=>{
-    if(reg.active) return res();
-    const sw=reg.installing||reg.waiting;
-    if(!sw) return res();
-    sw.addEventListener('statechange',()=>{
-      if(sw.state==='activated') res();
+    await new Promise(res=>{
+      if(reg.active) return res();
+      const sw=reg.installing||reg.waiting;
+      if(!sw) return res();
+      sw.addEventListener('statechange',()=>{
+        if(sw.state==='activated') res();
+      });
     });
-  });
-}
-
-// ── Parse DF.json ──
-function parseDFJson(raw){
-  const nameM=raw.match(/"name"\s*:\s*"([^"]+)"/);
-  const startM=raw.match(/"start"\s*:\s*"([^"]+)"/);
-
-  const name=nameM?nameM[1]:'App';
-  const start=startM?startM[1]:'index.html';
-
-  const lines=raw.split('\n').map(l=>l.trim());
-  const assets=[];
-  let curDir='';
-
-  for(const line of lines){
-    const pm=line.match(/"path"\s*:\s*"([^"]*)"/);
-    if(pm){
-      curDir=pm[1].replace(/^\.?\//,'').replace(/\/$/,'');
-      continue;
-    }
-
-    const um=line.match(/"(https?:\/\/[^"]+)"/);
-    if(um){
-      const url=um[1];
-      const fname=decodeURIComponent(new URL(url).pathname.split('/').pop());
-      assets.push({ dir:curDir, fname, url });
-    }
+  }catch(e){
+    console.warn('SW failed (offline maybe)');
   }
-
-  return { name, start, assets };
 }
 
-// ── UI ──
+// ── UI helpers ──
 function toast(msg,type=''){
   const el=document.createElement('div');
   el.className='toast '+(type==='ok'?'ok':type==='er'?'er':'');
@@ -196,28 +182,22 @@ function updateBadge(){
   b.style.display=c>0?'inline-flex':'none';
 }
 
-function setProgress(name,pct){
-  const id=name.replace(/[^a-z0-9]/gi,'_');
-  const f=document.getElementById('pf_'+id);
-  const p=document.getElementById('pp_'+id);
-
-  if(f) f.style.width=pct+'%';
-  if(p) p.textContent=Math.round(pct)+'%';
-}
-
 // ── Render ──
 function render(){
   const grid=document.getElementById('grid');
 
   const list = tab==='installed'
-    ? catalog.filter(a=>installed[a.name])
+    ? Object.keys(installed).map(name=>({
+        name,
+        icon: installed[name].icon || '',
+        size: installed[name].size || 'Installed'
+      }))
     : catalog;
 
-  if(!list.length && tab==='installed'){
+  if(!list.length){
     grid.innerHTML=`<div class="empty">
-      <div style="font-size:40px;margin-bottom:12px">🎮</div>
-      <p>Nothing installed yet</p>
-      <button class="btn sec" style="margin-top:14px;max-width:140px" onclick="switchTab('store')">← Store</button>
+      <div style="font-size:40px;margin-bottom:12px">📡</div>
+      <p>No data available</p>
     </div>`;
     return;
   }
@@ -225,115 +205,30 @@ function render(){
   grid.innerHTML = list.map(app=>{
     const id=app.name.replace(/[^a-z0-9]/gi,'_');
     const isIn=!!installed[app.name];
-    const isIng=!!installing[app.name];
     const n=app.name.replace(/'/g,"\\'");
 
     return `<div class="card">
       <div class="thumb">
-        <img src="${app.icon}" alt="${app.name}" onerror="this.style.display='none'"/>
+        <img src="${app.icon||''}" onerror="this.style.display='none'"/>
         ${isIn?'<div class="ibadge">✓ Installed</div>':''}
       </div>
       <div class="body">
-        <h3 title="${app.name}">${app.name}</h3>
-        <div class="sz">💾 ${app.size}</div>
+        <h3>${app.name}</h3>
+        <div class="sz">${app.size||''}</div>
 
         ${
-          isIng
-          ? `<div class="pb"><div class="pf" id="pf_${id}"></div></div><div class="pp" id="pp_${id}">0%</div>`
-          : isIn
+          isIn
             ? `<div class="row">
                 <button class="btn pri" onclick="launch('${n}')">▶ Launch</button>
                 <button class="btn del" onclick="uninstall('${n}')">🗑</button>
               </div>`
             : `<div class="row">
-                <button class="btn sec" onclick="install('${n}')">⬇ Install</button>
+                <button class="btn sec" disabled>Offline</button>
               </div>`
         }
       </div>
     </div>`;
   }).join('');
-}
-
-// ── Install ──
-async function install(name){
-  const app=catalog.find(a=>a.name===name);
-  if(!app) return;
-
-  installing[name]=true;
-  render();
-
-  try{
-    const raw=await fetch(app.install).then(r=>r.text());
-    const {start, assets}=parseDFJson(raw);
-
-    if(!assets.length) throw new Error('No assets');
-
-    for(let i=0;i<assets.length;i++){
-      const {dir,fname,url}=assets[i];
-      const ab=await fetch(url).then(r=>r.arrayBuffer());
-
-      const key = dir
-        ? `apps/${name}/${dir}/${fname}`
-        : `apps/${name}/${fname}`;
-
-      await idbPut('files', key, ab);
-      setProgress(name, ((i+1)/assets.length)*100);
-    }
-
-    // ✅ save icon
-    try{
-      const iconBlob = await fetch(app.icon).then(r=>r.blob());
-      await idbPut('files', `apps/${name}/icon`, iconBlob);
-    }catch(e){}
-
-    await idbPut('meta', name, {
-      start,
-      size:app.size,
-      icon:`apps/${name}/icon`
-    });
-
-    installed[name]={start};
-
-    toast(`${name} installed!`,'ok');
-
-    // notify OS
-    if(window.parent !== window){
-      window.parent.postMessage({
-        type:'app-installed',
-        name,
-        icon:app.icon
-      },'*');
-    }
-
-  }catch(e){
-    toast('Install failed: '+e.message,'er');
-    console.error(e);
-  }
-
-  delete installing[name];
-  updateBadge();
-  render();
-}
-
-// ── Uninstall ──
-async function uninstall(name){
-  if(!confirm(`Uninstall ${name}?`)) return;
-
-  const keys=await idbKeys('files');
-
-  for(const k of keys){
-    if(k.startsWith(`apps/${name}/`)){
-      await idbDel('files',k);
-    }
-  }
-
-  await idbDel('meta',name);
-  delete installed[name];
-
-  toast(`${name} uninstalled`);
-
-  updateBadge();
-  render();
 }
 
 // ── Launch ──
@@ -343,52 +238,9 @@ function launch(name){
 
   const url=`/apps/${encodeURIComponent(name)}/${m.start}`;
 
-  // try OS
-  if(window.parent !== window){
-    window.parent.postMessage({
-      type:'launch-app',
-      name,
-      url
-    },'*');
-    return;
-  }
-
-  // fallback (original)
   document.getElementById('rt').textContent=name;
-
-  const frame=document.getElementById('frame');
-  frame.src='';
-
-  frame.onload=()=>{
-    try{
-      const win=frame.contentWindow;
-      Object.defineProperty(win.navigator,'maxTouchPoints',{get:()=>0});
-      Object.defineProperty(win.navigator,'msMaxTouchPoints',{get:()=>0});
-      delete win.ontouchstart;
-      setTimeout(()=>win.dispatchEvent(new win.Event('resize')),200);
-    }catch(e){}
-  };
-
-  frame.src=url;
+  document.getElementById('frame').src=url;
   document.getElementById('ov').classList.add('open');
-}
-
-// ── Controls ──
-function closeRunner(){
-  document.getElementById('ov').classList.remove('open');
-  document.getElementById('frame').src='';
-}
-
-function toggleFS(){
-  document.getElementById('win').classList.toggle('fs');
-}
-
-function switchTab(t){
-  tab=t;
-  document.querySelectorAll('.tab').forEach(b=>{
-    b.classList.toggle('active',b.dataset.tab===t);
-  });
-  render();
 }
 
 // ── Boot ──
@@ -398,8 +250,8 @@ function switchTab(t){
   await ensureSW();
   db=await openDB();
 
+  // load installed apps FIRST (works offline)
   const mk=await idbKeys('meta');
-
   for(const k of mk){
     const m=await idbGet('meta',k);
     if(m) installed[k]=m;
@@ -407,12 +259,19 @@ function switchTab(t){
 
   updateBadge();
 
-  catalog=await fetch(CATALOG).then(r=>r.json());
+  // try to fetch catalog (may fail offline)
+  const data = await safeFetchJSON(CATALOG);
 
-  document.getElementById('cc').textContent=`${catalog.length} apps`;
+  if(data){
+    catalog = data;
+    document.getElementById('cc').textContent = `${catalog.length} apps`;
+  }else{
+    catalog = [];
+    document.getElementById('cc').textContent = `Offline mode`;
+    tab = 'installed'; // auto switch
+  }
 
   document.getElementById('status').style.display='none';
-
   render();
 })();
 </script>
